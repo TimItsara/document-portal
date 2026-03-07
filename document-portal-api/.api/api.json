@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "apis": [
+    {
+      "identifier": "truuth",
+      "source": "@truuth/v1.0#dyn11b2mipou6yi",
+      "integrity": "sha512-k6up9hZvwEMNIZquAs/moQmx82SeRVrQbfkYlsGtCxIo2R49Kjs2D2UKgys6De54ZchUWyRpfuxbef/j/wPgng==",
+      "installerVersion": "6.1.3"
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+enum DocumentTypeCode {
+
+  // ── Australian Identity Documents ──
+  AU_PASSPORT
+  AU_DRIVER_LICENCE
+  AU_MEDICARE_CARD
+  AU_PROOF_OF_AGE
+  AU_IMMI_CARD
+  AU_CITIZENSHIP_CERT
+  AU_BIRTH_CERT
+  AU_CHANGE_OF_NAME
+  AU_MARRIAGE_CERT
+
+  // ── Generic International Documents ──
+  PASSPORT
+  DRIVERS_LICENCE
+  MEDICARE
+  PROOF_OF_AGE
+
+  // ── Financial / Employment Documents ──
+  RESUME
+  BANK_STATEMENT
+  TAX_RETURN
+  PAY_SLIP
+  EMPLOYMENT_CONTRACT
+
+  // ── Address Verification ──
+  UTILITY_BILL
+  COUNCIL_RATES
+
+  // ── Photo / Facial Identity ──
+  PHOTO_ID
+  SELFIE
+
+  // ── Visa / Immigration ──
+  VISA
+  WORK_PERMIT
+
+  // ── Other ──
+  OTHER
+}
+
+enum ClassifierStatus {
+  SKIPPED
+  PASSED
+  FAILED
+}
+
+enum VerifyStatus {
+  NOT_SUBMITTED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model User {
+  id           String               @id @default(uuid())
+  username     String               @unique
+  passwordHash String
+  profilePhoto String?
+  createdAt    DateTime             @default(now())
+  submissions  DocumentSubmission[]
+}
+
+model DocumentType {
+  code               DocumentTypeCode     @id
+  displayName        String
+  requiresClassifier Boolean
+  required           Boolean              @default(false)
+  submissions        DocumentSubmission[]
+}
+
+model DocumentSubmission {
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType     DocumentTypeCode
+  docType          DocumentType     @relation(fields: [documentType], references: [code])
+  originalFilename String?
+  mimeType         String?
+
+  classifierStatus   ClassifierStatus @default(SKIPPED)
+  classifierResponse Json?
+  classifierError    String?
+  classifiedAt       DateTime?
+
+  documentVerifyId  String?      @unique
+  verifyStatus      VerifyStatus @default(NOT_SUBMITTED)
+  verifySubmittedAt DateTime?
+  lastPolledAt      DateTime?
+  pollCount         Int          @default(0)
+  verifyResult      Json?
+  verifyError       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, documentType])
+}

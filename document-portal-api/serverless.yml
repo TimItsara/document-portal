@@ -1,0 +1,81 @@
+service: truuth-portal-api
+
+frameworkVersion: '3'
+
+useDotenv: true  # ✅ auto-loads .env for serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ap-southeast-2
+  memorySize: 512
+  timeout: 29  # ✅ API Gateway hard limit
+  apiGateway:
+    binaryMediaTypes:  # ✅ required for multipart/form-data uploads
+      - 'multipart/form-data'
+      - '*/*'
+  environment:
+    DATABASE_URL: ${env:DATABASE_URL}
+    DATABASE_URL_UNPOOLED: ${env:DATABASE_URL_UNPOOLED}
+    AUTH_SECRET: ${env:AUTH_SECRET}
+    TRUUTH_API_KEY: ${env:TRUUTH_API_KEY}
+    TRUUTH_API_SECRET: ${env:TRUUTH_API_SECRET}
+    FRONTEND_URL: ${env:FRONTEND_URL}
+    NODE_ENV: production
+
+package:
+  individually: false
+  patterns:
+    - '!src/**'
+    - '!*.test.ts'
+    - '!.env*'
+    - '!README.md'
+    - 'dist/**'
+    - 'node_modules/**'
+    - 'prisma/**'
+
+functions:
+  api:
+    handler: dist/index.handler
+    events:
+      # ── Auth ────────────────────────────────────────
+      - http:
+          path: /api/auth/login
+          method: post
+          cors: true
+      - http:
+          path: /api/auth/me
+          method: get
+          cors: true
+      - http:
+          path: /api/auth/signup
+          method: post
+          cors: true
+
+      # ── Documents ───────────────────────────────────
+      - http:
+          path: /api/documents/status
+          method: get
+          cors: true
+      - http:
+          path: /api/documents/upload
+          method: post
+          cors: true
+      - http:
+          path: /api/documents/result/{code}
+          method: get
+          cors: true
+
+      # ── Health ──────────────────────────────────────
+      - http:
+          path: /api/health
+          method: get
+          cors: true
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3001
+    noPrependStageInUrl: true
