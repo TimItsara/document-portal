@@ -508,7 +508,7 @@ export default function Dashboard({
         {/* ── Confirm ── */}
         <div className="flex justify-end pb-10">
           <a
-            href="https://github.com/TimItsara/document-portal-web"
+            href="https://github.com/TimItsara/document-portal"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-white font-semibold cursor-pointer transition-opacity hover:opacity-90"
             style={{
