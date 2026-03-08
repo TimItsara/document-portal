@@ -26,8 +26,6 @@ Allows users to register, log in, upload identity documents, and view verificati
 git clone <your-repo-url>
 cd document-portal
 ### 2. Install dependencies
-Frontend README you stuck i dont get the full
-file
 npm install
 ### 3. Configure environment variables
 cp .env.example .env

@@ -18,7 +18,7 @@ Key capabilities:
 
 - **AI Document Classification** — Truuth Classifier API validates that the uploaded image matches the expected document type before submission
 - **Deep Fraud Detection** — Truuth Verify API runs 18+ forensic checks per document (deepfake analysis, C2PA, watermarks, timestamps, software fingerprints, visual anomalies, and more)
-- **Async Polling Engine** — background poller tracks verification jobs and updates status in real time without blocking the upload response
+- **Polling-on-read Verification** — frontend polls GET /status every 5s; server checks Truuth live for any PROCESSING submissions, updating the DB before responding. Serverless-compatible alternative to background workers.
 - **PDF Report Export** — users can download a branded multi-document verification report as a PDF
 - **JWT Authentication** — stateless auth with secure token handling on both client and server
 
@@ -63,9 +63,9 @@ document-portal/
 3. **Identity documents** (AU_PASSPORT, AU_DRIVER_LICENCE) → Truuth Classifier API validates the document type
 4. If classification passes → submitted to Truuth Verify API → returns a `documentVerifyId`
 5. Record is saved to PostgreSQL with status `PROCESSING`
-6. Background poller polls every 5 seconds until `DONE` or `FAILED`
+6. Frontend polls GET /api/documents/status every 5 seconds — server checks Truuth live for PROCESSING docs and updates DB before responding
 7. Final result (fraud scores, check breakdowns) stored in DB
-8. **Non-identity documents** (RESUME, BANK_STATEMENT, etc.) skip classification and verify
+8. **Non-identity documents** (RESUME, BANK_STATEMENT, etc.) skip classification but are still submitted to the Truuth Verify API
 
 ---
 
@@ -83,6 +83,66 @@ document-portal/
 | Database | PostgreSQL via Neon | Serverless-friendly pooled connections |
 | Auth | JWT + bcrypt | Stateless, secure, no session storage required |
 | Deployment | Vercel | Zero-config CI/CD for both frontend and API |
+
+---
+
+## Architecture Decisions
+
+**BFF Pattern**
+Built as a dedicated Backend-for-Frontend rather than exposing Truuth APIs
+directly to the browser. This keeps API credentials server-side, centralises
+validation logic, and lets the frontend stay thin.
+
+**Upsert-based document submissions**
+All uploads use Prisma upsert keyed on (userId, documentType) — so re-uploads
+cleanly replace the previous submission without duplicates. Every re-upload
+resets all verify fields (documentVerifyId, pollCount, verifyResult) to ensure
+no stale data leaks through.
+
+**Polling-on-read verification**
+Rather than a background setInterval (which does not survive Vercel serverless
+cold starts), verification status is resolved lazily — when the client requests
+document status via GET /api/documents/status, the server checks Truuth live
+for any PROCESSING submissions, increments pollCount, and updates the DB before
+responding. The frontend drives the 5-second poll frequency via setInterval,
+stopping automatically once all docs reach a terminal status.
+
+**Selective classification pipeline**
+The upload pipeline applies classification selectively. Only AU_PASSPORT and
+AU_DRIVER_LICENCE go through the Truuth Classifier to validate document type
+and country before submission — other document types skip classification
+entirely (classifierStatus = SKIPPED). All documents are then submitted to the
+Truuth Verify API for fraud checks.
+
+---
+
+## Shortcuts Taken
+
+- Polling is driven client-side (frontend setInterval every 5s) rather than a
+  true server-side background worker (e.g. BullMQ). Vercel serverless does not
+  support persistent background processes — polling-on-read is the correct
+  pattern for this deployment model. In production, a dedicated worker or
+  WebSockets/SSE would be used.
+
+- File content is not persisted to object storage (S3 etc.) — only metadata is
+  stored in the DB. The raw file is sent directly to Truuth APIs in memory.
+
+- JWT tokens do not expire (no expiresIn set). In production, short-lived
+  tokens with refresh token rotation would be used.
+
+---
+
+## Known Limitations
+
+- No rate limiting on the upload endpoint. In production, per-user rate limits
+  would be applied to prevent abuse.
+
+- CORS is locked to a single FRONTEND_URL env var. Multi-origin support would
+  require an allowlist approach.
+
+- Neon free tier allows only 5 simultaneous connections. The DATABASE_URL is
+  configured with connection_limit=1 to stay within this constraint on Vercel
+  serverless.
 
 ---
 
@@ -345,7 +405,7 @@ These are natural next steps that would further strengthen this platform:
 | Area | Enhancement |
 |---|---|
 | **Security** | Refresh token rotation, rate limiting on auth endpoints, CSRF protection |
-| **UX** | Real-time polling via WebSockets or SSE instead of HTTP polling on the frontend |
+| **Real-time Updates** | Replace client-side polling with WebSockets or SSE — server pushes status changes instead of client polling every 5s |
 | **Resilience** | Retry queue for failed Truuth API calls, dead-letter store for unrecoverable submissions |
 | **Testing** | Unit tests (Vitest), API integration tests (Supertest), E2E tests (Playwright) |
 | **Observability** | Structured logging (Pino), error monitoring (Sentry), API metrics dashboard |
