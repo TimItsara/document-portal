@@ -78,6 +78,17 @@ export default function Dashboard({
     fetchCards();
   }, [fetchCards]);
 
+  useEffect(() => {
+    const hasProcessing = cards.some(c => c.verifyStatus === "PROCESSING");
+    if (!hasProcessing) return;
+
+    const interval = setInterval(() => {
+      fetchCards();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [cards, fetchCards]);
+
   const required = cards.filter((c) => c.required);
   const additional = cards.filter(
     (c) => !c.required && c.verifyStatus !== "NOT_SUBMITTED",

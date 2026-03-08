@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma";
 import { getUserIdFromRequest } from "../lib/auth";
 import { DocumentTypeCode, ClassifierStatus, VerifyStatus, Prisma } from "@prisma/client";
 import { classifyDocument, validateClassification, submitToVerify } from "../lib/truuth";
-import { pollSubmission } from "../lib/poller";
+import { checkAndUpdateSubmission } from "../lib/poller";
 
 const router = Router();
 const upload = multer({
@@ -59,9 +59,18 @@ router.get("/status", async (req, res) => {
 
   try {
     const types = await prisma.documentType.findMany();
-    const subs = await prisma.documentSubmission.findMany({
+    let subs = await prisma.documentSubmission.findMany({
       where: { userId },
     });
+
+    // Polling-on-read: check Truuth live for any PROCESSING submissions
+    subs = await Promise.all(
+      subs.map(sub =>
+        sub.verifyStatus === VerifyStatus.PROCESSING
+          ? checkAndUpdateSubmission(sub.id).then(updated => updated ?? sub)
+          : sub
+      )
+    );
 
     const byType = new Map(subs.map((s) => [s.documentType, s]));
 
@@ -242,9 +251,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         ...sharedFields,
       },
     });
-
-    // Step 4: Start polling in background
-    void pollSubmission(submission.id);
 
     return res.json({
       success: true,
