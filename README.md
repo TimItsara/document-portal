@@ -93,7 +93,7 @@ document-portal/
 |---|---|---|
 | `AU_PASSPORT` | ✅ Yes | ✅ Yes |
 | `AU_DRIVER_LICENCE` | ✅ Yes | ✅ Yes |
-| `RESUME` | ⬜ Skipped | ⬜ Skipped |
+| `RESUME` | ⬜ Skipped | ✅ Yes |
 
 ### Optional (go through Verify API)
 `AU_MEDICARE_CARD` · `AU_PROOF_OF_AGE` · `PASSPORT` · `DRIVERS_LICENCE` ·
