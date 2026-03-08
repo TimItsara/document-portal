@@ -45,14 +45,14 @@ document-portal/
              ▼
 ┌─────────────────────────────┐
 │   Express API (Serverless)  │  document-portal-api
-│  Auth · Upload · Polling    │
+│  Auth · Upload · Status     │
 └──────┬──────────┬───────────┘
        │          │
        ▼          ▼
 ┌──────────┐  ┌─────────────────────────┐
-│ Postgres │  │     Truuth APIs          │
-│  (Neon)  │  │  Classifier + Verify     │
-│  Prisma  │  │  (truuth.id)             │
+│ Postgres │  │     Truuth APIs         │
+│  (Neon)  │  │  Classifier + Verify    │
+│  Prisma  │  │  (truuth.id)            │
 └──────────┘  └─────────────────────────┘
 ```
 
@@ -60,8 +60,8 @@ document-portal/
 
 1. User uploads file via the React UI
 2. API receives the file (multipart/form-data, max 10 MB)
-3. **Identity documents** (AU_PASSPORT, AU_DRIVER_LICENCE) → Truuth Classifier API validates the document type
-4. If classification passes → submitted to Truuth Verify API → returns a `documentVerifyId`
+3. **AU_PASSPORT** and **AU_DRIVER_LICENCE** → Truuth Classifier API validates the document type; all other documents skip classification
+4. Document submitted to Truuth Verify API → returns a `documentVerifyId`
 5. Record is saved to PostgreSQL with status `PROCESSING`
 6. Frontend polls GET /api/documents/status every 5 seconds — server checks Truuth live for PROCESSING docs and updates DB before responding
 7. Final result (fraud scores, check breakdowns) stored in DB
@@ -172,7 +172,7 @@ Truuth Verify API for fraud checks.
 
 ```bash
 git clone <your-repo-url>
-cd challenge
+cd document-portal
 ```
 
 ### 2. Set up the API
@@ -296,7 +296,7 @@ DocumentSubmission
 
 ## Verification Checks
 
-Each identity document submitted to Truuth Verify runs the following forensic checks:
+Each document submitted to Truuth Verify runs the following forensic checks:
 
 | Check | What it detects |
 |---|---|
